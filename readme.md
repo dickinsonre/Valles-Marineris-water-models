@@ -4,6 +4,8 @@ An interactive, single-file browser app that works through what it would take to
 
 **Live demo:** open `index.html` (or the GitHub Pages link once Pages is enabled).
 
+https://valles-marineris-water-models.netlify.app/
+
 ## Why this exists
 
 The canyon is ~7 km deep and up to ~200 km wide — the Grand Canyon would vanish inside it. That depth is the whole point: descend far enough and the atmosphere thickens, radiation drops, and liquid water becomes thermodynamically plausible at the floor. Once you have water flowing, you have the same problems I've spent fifty years modeling on Earth — a pressurized distribution network and a gravity collection network — just under Martian pressure and gravity. This app builds those problems out, with working solvers, and lets you size them.
