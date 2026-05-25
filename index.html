@@ -87,6 +87,7 @@
     <button data-tab="modelscale" class="tab-btn px-4 py-3 text-sm font-semibold whitespace-nowrap">Model Scale</button>
     <button data-tab="power" class="tab-btn px-4 py-3 text-sm font-semibold whitespace-nowrap">Power &amp; Atmosphere</button>
     <button data-tab="depth" class="tab-btn px-4 py-3 text-sm font-semibold whitespace-nowrap">Depth Profile</button>
+    <button data-tab="mola" class="tab-btn px-4 py-3 text-sm font-semibold whitespace-nowrap">MOLA Topography</button>
     <button data-tab="timeline" class="tab-btn px-4 py-3 text-sm font-semibold whitespace-nowrap">1000-Year Timeline</button>
     <button data-tab="howitworks" class="tab-btn px-4 py-3 text-sm font-semibold whitespace-nowrap">How It Works</button>
   </div>
@@ -848,6 +849,44 @@
   </div>
 </section>
 
+<!-- ===================== TAB: MOLA TOPOGRAPHY ===================== -->
+<section id="tab-mola" class="tab-panel hidden">
+  <p class="text-amber-100/70 text-sm mb-4">Real topography from the <b>Mars Orbiter Laser Altimeter (MOLA)</b>, instead of synthetic geometry. The canyon runs west (high) → east (low) and empties into Chryse Planitia — a genuine ~7 km drop over ~3,500 km that gives the hydraulic models a physically correct gravity gradient. Tap a chasma to feed its real floor/rim elevations into the EPANET and SWMM tabs.</p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="glass rounded-xl p-5">
+      <h3 class="font-bold text-amber-100 mb-3">The chasmata, west → east</h3>
+      <div id="mola-list" class="space-y-1.5 text-sm"></div>
+      <p class="text-xs text-amber-100/50 mt-3">Elevations are MOLA-derived figures from the published literature (datum = Mars areoid). Approximate; the canyon floor is rugged, not a smooth grade.</p>
+    </div>
+    <div class="lg:col-span-2 space-y-4">
+      <div class="glass rounded-xl p-5">
+        <h3 class="font-bold text-amber-100 mb-2">Long profile — floor &amp; rim elevation</h3>
+        <svg id="mola-svg" viewBox="0 0 600 320" class="w-full h-auto"></svg>
+        <p id="mola-readout" class="text-xs mt-2"></p>
+      </div>
+      <div id="mola-metrics" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+      <div class="glass rounded-xl p-4">
+        <div class="text-sm text-amber-100/80 mb-2">Which gradient to feed the engines?</div>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+          <button id="grade-mode-regional" class="grade-mode px-2 py-2 rounded-lg text-xs font-semibold bg-black/40 text-amber-100 border border-amber-400/20">Regional<br><span class="text-amber-100/50">~0.1%</span></button>
+          <button id="grade-mode-descent" class="grade-mode px-2 py-2 rounded-lg text-xs font-semibold bg-amber-500 text-stone-900">Engineered descent<br><span class="opacity-70">~25%</span></button>
+          <button id="grade-mode-wall" class="grade-mode px-2 py-2 rounded-lg text-xs font-semibold bg-black/40 text-amber-100 border border-amber-400/20">Wall face<br><span class="text-amber-100/50">~100%</span></button>
+        </div>
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div id="grade-desc" class="text-xs text-amber-100/70"></div>
+          <button id="mola-apply" class="bg-amber-500 hover:bg-amber-400 text-stone-900 py-2 px-3 rounded-lg text-sm font-semibold shrink-0">Apply to EPANET + SWMM</button>
+        </div>
+        <p id="mola-apply-status" class="text-xs mt-2"></p>
+      </div>
+      <div class="glass rounded-xl p-4">
+        <h3 class="font-bold text-amber-100 mb-2 text-sm">Want the real raster DEM?</h3>
+        <p class="text-xs text-amber-100/70">For true per-pixel terrain, download a MOLA GeoTIFF (≈463 m/px) from the <b>USGS Astrogeology Astropedia</b>, HRSC DEMs (50–100 m/px) from the <b>ESA Planetary Science Archive</b>, or HiRISE DTMs (1–2 m/px) from the <b>University of Arizona</b>. Reproject in QGIS/GDAL with a Mars 2000 areocentric CRS, then sample a centerline long-profile to replace these tabulated values with a full DEM-derived grade.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ===================== TAB: TIMELINE ===================== -->
 <section id="tab-timeline" class="tab-panel hidden">
   <p class="text-amber-100/70 text-sm mb-4">A plausible thousand-year arc — from robotic scouts to a canyon civilization. Click a milestone to read more.</p>
@@ -1086,7 +1125,7 @@ const TIMELINE = [
    TAB SWITCHING
 ============================================================ */
 const tabBtns = document.querySelectorAll('.tab-btn');
-const panels = { why:'tab-why', districts:'tab-districts', habitat:'tab-habitat', tech:'tab-tech', lid:'tab-lid', cost:'tab-cost', water:'tab-water', atmos:'tab-atmos', weather:'tab-weather', epanet:'tab-epanet', swmm:'tab-swmm', modelscale:'tab-modelscale', power:'tab-power', depth:'tab-depth', timeline:'tab-timeline', howitworks:'tab-howitworks' };
+const panels = { why:'tab-why', districts:'tab-districts', habitat:'tab-habitat', tech:'tab-tech', lid:'tab-lid', cost:'tab-cost', water:'tab-water', atmos:'tab-atmos', weather:'tab-weather', epanet:'tab-epanet', swmm:'tab-swmm', modelscale:'tab-modelscale', power:'tab-power', depth:'tab-depth', mola:'tab-mola', timeline:'tab-timeline', howitworks:'tab-howitworks' };
 function setTab(name){
   Object.entries(panels).forEach(([k,id])=>{
     document.getElementById(id).classList.toggle('hidden', k!==name);
@@ -3349,9 +3388,135 @@ document.getElementById('s-depth').addEventListener('input', renderDepth);
 renderDepth();
 
 /* ============================================================
-   TAB: TIMELINE
+   TAB: MOLA TOPOGRAPHY (real published elevations)
+   Source: MOLA-derived figures from peer-reviewed literature & USGS.
+   Datum = Mars areoid. Distances are approximate centerline positions.
 ============================================================ */
-document.getElementById('timeline').innerHTML =
+// [name, distance from west km, floor elev m, rim elev m, width km]
+const MOLA = [
+  ['Noctis Labyrinthus', 0,    1000,  4000, 30],
+  ['Tithonium Chasma',   400, -1000,  4000, 10],
+  ['Ius Chasma',         750, -3000,  3500, 100],
+  ['Melas Chasma',      1300, -5000,  3000, 290],
+  ['Candor Chasma',     1500, -4000,  3500, 150],
+  ['Ophir Chasma',      1650, -4000,  4000, 100],
+  ['Coprates Chasma',   2100, -4700,  2500, 100],
+  ['Capri Chasma',      2900, -4000,  1500, 390],
+  ['Eos Chasma',        3100, -3500,  1000, 200],
+  ['Chryse outflow',    3600, -2500,  -500, 300]
+];
+let molaSel=3; // Melas (deepest) by default
+function renderMola(){
+  // list
+  document.getElementById('mola-list').innerHTML=MOLA.map((m,i)=>`
+    <div class="flex justify-between items-center rounded-lg p-2 cursor-pointer border ${i===molaSel?'border-amber-400 bg-amber-500/10':'border-amber-400/10 bg-black/20'}" onclick="selMola(${i})">
+      <div><span class="font-semibold ${i===molaSel?'text-amber-200':'text-amber-100/90'}">${m[0]}</span></div>
+      <div class="font-mono text-xs text-amber-300">${m[2]>0?'+':''}${m[2].toLocaleString()} m</div>
+    </div>`).join('');
+  const m=MOLA[molaSel];
+  const relief=m[3]-m[2];
+  const cards=[
+    ['Selected', m[0].split(' ')[0], ''],
+    ['Floor elevation', (m[2]>0?'+':'')+m[2].toLocaleString(), 'm'],
+    ['Rim elevation', '+'+m[3].toLocaleString(), 'm'],
+    ['Local relief', relief.toLocaleString(), 'm']
+  ];
+  document.getElementById('mola-metrics').innerHTML=cards.map(c=>`
+    <div class="glass rounded-xl p-3"><div class="text-[11px] uppercase tracking-wide text-amber-300/70 leading-tight">${c[0]}</div><div class="text-lg font-bold text-amber-50 mt-1 break-words">${c[1]}<span class="text-xs font-normal text-amber-200/60 ml-1">${c[2]}</span></div></div>`).join('');
+  // overall west->east floor gradient (Noctis to Chryse)
+  const dz=MOLA[0][2]-MOLA[MOLA.length-1][2]; // m drop
+  const dx=(MOLA[MOLA.length-1][1]-MOLA[0][1])*1000; // m
+  const grade=dz/dx; // m/m
+  document.getElementById('mola-readout').innerHTML=`<b style="color:#f5b94d">${m[0]}:</b> floor at ${m[2].toLocaleString()} m, rim at +${m[3].toLocaleString()} m → ${relief.toLocaleString()} m of wall relief. Overall canyon floor falls <b>${dz.toLocaleString()} m over ~${((dx/1000)).toLocaleString()} km west→east</b> — an average grade of <b>${(grade*100).toFixed(3)}%</b> (${(grade*1000).toFixed(2)} m/km), the gravity slope your conveyance follows toward Chryse.`;
+  drawMola();
+}
+window.selMola=function(i){ molaSel=i; renderMola(); };
+function drawMola(){
+  const svg=document.getElementById('mola-svg');
+  const W=600,H=320,padL=55,padR=20,padT=20,padB=46;
+  const x0=padL,x1=W-padR,y0=H-padB,y1=padT;
+  const xmax=MOLA[MOLA.length-1][1];
+  const allE=MOLA.flatMap(m=>[m[2],m[3]]);
+  const emax=Math.max(...allE), emin=Math.min(...allE);
+  const px=d=>x0+(d/xmax)*(x1-x0);
+  const py=e=>y0-(e-emin)/(emax-emin)*(y0-y1);
+  let s=`<rect x="0" y="0" width="${W}" height="${H}" fill="rgba(0,0,0,0.2)"/>`;
+  // datum line (0 m)
+  if(emin<0&&emax>0){ const yz=py(0); s+=`<line x1="${x0}" y1="${yz}" x2="${x1}" y2="${yz}" stroke="#7a6a55" stroke-width="1" stroke-dasharray="3 3"/>`; s+=`<text x="${x1}" y="${yz-3}" fill="#9a8a75" font-size="8" text-anchor="end">areoid (0 m)</text>`; }
+  // rim profile
+  let rim=''; MOLA.forEach((m,i)=>{ rim+=(i===0?'M':'L')+px(m[1]).toFixed(0)+','+py(m[3]).toFixed(0)+' '; });
+  // floor profile
+  let flr=''; MOLA.forEach((m,i)=>{ flr+=(i===0?'M':'L')+px(m[1]).toFixed(0)+','+py(m[2]).toFixed(0)+' '; });
+  // fill between (the canyon void)
+  let fill=rim+' '; for(let i=MOLA.length-1;i>=0;i--){ fill+='L'+px(MOLA[i][1]).toFixed(0)+','+py(MOLA[i][2]).toFixed(0)+' '; } fill+='Z';
+  s+=`<path d="${fill}" fill="rgba(201,106,53,0.18)"/>`;
+  s+=`<path d="${rim}" fill="none" stroke="#d9a06a" stroke-width="2"/>`;
+  s+=`<path d="${flr}" fill="none" stroke="#7fd3ff" stroke-width="2.5"/>`;
+  // markers + labels
+  MOLA.forEach((m,i)=>{
+    const sel=i===molaSel;
+    s+=`<circle cx="${px(m[1])}" cy="${py(m[2])}" r="${sel?5:3}" fill="${sel?'#f5b94d':'#7fd3ff'}"/>`;
+    if(sel){ s+=`<line x1="${px(m[1])}" y1="${py(m[2])}" x2="${px(m[1])}" y2="${py(m[3])}" stroke="#f5b94d" stroke-width="1" stroke-dasharray="2 2"/>`; }
+  });
+  // axis labels
+  s+=`<text x="${(x0+x1)/2}" y="${H-6}" fill="#f5b94d" font-size="10" text-anchor="middle">distance west → east (km) → Chryse Planitia</text>`;
+  s+=`<text x="14" y="${(y0+y1)/2}" fill="#d9a06a" font-size="9" text-anchor="middle" transform="rotate(-90 14 ${(y0+y1)/2})">elevation (m)</text>`;
+  for(let g=0;g<=4;g++){ const d=xmax*g/4; s+=`<text x="${px(d)}" y="${y0+14}" fill="#caa882" font-size="8" text-anchor="middle">${d.toFixed(0)}</text>`; }
+  s+=`<text x="${x1-4}" y="${y1+10}" fill="#d9a06a" font-size="9" text-anchor="end">rim</text>`;
+  s+=`<text x="${x1-4}" y="${y1+24}" fill="#7fd3ff" font-size="9" text-anchor="end">floor</text>`;
+  svg.innerHTML=s;
+}
+let gradeMode='descent';
+function gradeForMode(){
+  const m=MOLA[molaSel];
+  const relief=m[3]-m[2];                 // local wall relief (m)
+  if(gradeMode==='regional'){
+    const dz=MOLA[0][2]-MOLA[MOLA.length-1][2];
+    const dx=(MOLA[MOLA.length-1][1]-MOLA[0][1])*1000;
+    return {grade:dz/dx, label:'regional west→east floor grade', detail:`${dz.toLocaleString()} m over ~${(dx/1000).toLocaleString()} km`};
+  }
+  if(gradeMode==='wall'){
+    const run=Math.max(4, (m[4]||10)*0.08)*1000; // steep wall face run (m), a fraction of width
+    return {grade:relief/run, label:`${m[0]} wall face`, detail:`${relief.toLocaleString()} m relief over a ~${(run/1000).toFixed(1)} km cliff`};
+  }
+  // engineered descent: switchback route ~4x the straight wall run
+  const run=Math.max(16,(m[4]||10)*0.32)*1000;
+  return {grade:relief/run, label:`${m[0]} engineered descent`, detail:`${relief.toLocaleString()} m relief routed over ~${(run/1000).toFixed(0)} km of switchbacks`};
+}
+function setGradeMode(g){
+  gradeMode=g;
+  ['regional','descent','wall'].forEach(k=>{
+    const el=document.getElementById('grade-mode-'+k);
+    el.className='grade-mode px-2 py-2 rounded-lg text-xs font-semibold '+(k===g?'bg-amber-500 text-stone-900':'bg-black/40 text-amber-100 border border-amber-400/20');
+  });
+  const gd=gradeForMode();
+  document.getElementById('grade-desc').innerHTML=`<b style="color:#f5b94d">${(gd.grade*100).toFixed(gd.grade<0.01?3:1)}%</b> · ${gd.detail}`;
+}
+document.getElementById('grade-mode-regional').addEventListener('click',()=>setGradeMode('regional'));
+document.getElementById('grade-mode-descent').addEventListener('click',()=>setGradeMode('descent'));
+document.getElementById('grade-mode-wall').addEventListener('click',()=>setGradeMode('wall'));
+
+document.getElementById('mola-apply').addEventListener('click',()=>{
+  const gd=gradeForMode();
+  const grade=gd.grade, gradePct=grade*100;
+  // EPANET drop per 800 m segment:
+  const dropPerSeg=Math.round(grade*800);
+  const eEl=document.getElementById('es-drop');
+  if(eEl){ eEl.value=Math.max(0,Math.min(+eEl.max, dropPerSeg)); eEl.dispatchEvent(new Event('input')); }
+  // SWMM conduit + surface slope (%), clamped to slider ranges
+  const sEl=document.getElementById('ms-slope');
+  if(sEl){ sEl.value=Math.max(+sEl.min, Math.min(+sEl.max, +gradePct.toFixed(1)||+sEl.min)); sEl.dispatchEvent(new Event('input')); }
+  const ss=document.getElementById('ms-sslope');
+  if(ss){ ss.value=Math.max(+ss.min, Math.min(+ss.max, +gradePct.toFixed(1)||+ss.min)); ss.dispatchEvent(new Event('input')); }
+  const st=document.getElementById('mola-apply-status');
+  st.style.color='#3fae5a';
+  const clamped = gradePct > +sEl.max;
+  st.innerHTML=`Applied <b>${gd.label}</b> (${gradePct.toFixed(gradePct<1?3:1)}%): EPANET down-canyon drop → <b>${dropPerSeg} m/segment</b>, SWMM conduit grade → <b>${Math.min(gradePct,+sEl.max).toFixed(1)}%${clamped?' (slider max)':''}</b>. ${gradeMode==='regional'?'Gentle — gravity barely helps; engineered routing does the work.':gradeMode==='wall'?'A near-cliff — real conduits would never run straight down this; it shows the raw relief.':'A realistic switchback descent from rim bench to floor — steep enough for strong gravity flow, the sweet spot for conveyance.'} Open the EPANET / SWMM tabs to see it.`;
+});
+renderMola();
+setGradeMode('descent');
+
+
   `<div class="absolute left-2 sm:left-3 top-0 bottom-0 w-0.5 bg-amber-500/40"></div>` +
   TIMELINE.map((t,i)=>`
     <div class="relative mb-5 cursor-pointer" onclick="this.querySelector('.tl-body').classList.toggle('hidden')">
