@@ -44,7 +44,7 @@ The Model Scale tab generates standards-compliant input files:
 
 Two scopes: a small sample network that opens instantly, and a full-district build at the real engine ceiling (~100,000 elements, ~10–18 MB) that opens and runs on a desktop. The full canyon is deliberately *not* exported as one file — at ~33 million conduits it's a 7.5 GB monster that no current engine can open. That's the point the Model Scale tab makes: decompose into districts, couple at the trunk interceptor.
 
-Ready-to-open sample files are in [`examples/`](examples/).
+Ready-to-open sample files.
 
 ## How it works
 
